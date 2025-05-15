@@ -1,2 +1,8 @@
-ip:port
-ip:port:user:pass
+# Free public proxies (may not always work reliably)
+51.158.68.68:8811
+51.159.115.233:3128
+138.201.5.11:3128
+185.199.228.140:7300
+134.209.29.120:3128
+# Example authenticated proxy (replace with real credentials if needed)
+127.0.0.1:8080:user:pass

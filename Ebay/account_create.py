@@ -50,7 +50,7 @@ class Gen:
         self.password = credentials.password()
 
     def chooseProxy(self):
-        self.s.proxies.update(get_proxy.get_proxies())
+        self.s.proxies.update(get_proxy.get_proxy())
         return
     
     def getSession(self):
@@ -124,27 +124,28 @@ class Gen:
                 config_dir = this_file.parent.parent / 'Config'
 
                 
-                request = self.s.post(data.signup_URL ,json=payload, headers=data.Headers.accountCreate)
+                request = self.s.post(data.signup_URL, json=payload, headers=data.Headers.accountCreate)
                 #print(request.text)
                 
                 if "SUCCESS" in request.text:
                     session = json.dumps(self.s.cookies.get_dict())
-                    f = open(config_dir / 'created_accounts.txt', "a")
-                    f.write(f'{self.email}:{self.password}:{self.firstName}:{self.lastName}:{session} \n')
-                    f.close()
+                    with open(config_dir / 'created_accounts.txt', "a") as f:
+                        f.write(f'{self.email}:{self.password}:{self.firstName}:{self.lastName}:{session}\n')
                     self.lock.acquire()
-                    print(Fore.LIGHTMAGENTA_EX + f"[Task: {self.task}]" ,Fore.BLUE + format(datetime.datetime.now()) , f"{Fore.GREEN}Account Created Successfully {Fore.CYAN}{self.email}")
+                    print(Fore.LIGHTMAGENTA_EX + f"[Task: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), f"{Fore.GREEN}Account Created Successfully {Fore.CYAN}{self.email}")
                     self.lock.release()
                     
                 else:
-                    error = json.loads(request.text)["fields"]
-                    for i in error:
-                        print(i["errorMessage"])
-                    f = open(config_dir / 'failed_accounts.txt', "a")
-                    f.write(f'{self.email} \n')
-                    f.close()
+                    try:
+                        error = json.loads(request.text).get("fields", [])
+                        for i in error:
+                            print(i.get("errorMessage", "Unknown error"))
+                    except Exception as e:
+                        print(Fore.RED + "Failed to parse error message:", str(e))
+                    with open(config_dir / 'failed_accounts.txt', "a") as f:
+                        f.write(f'{self.email}\n')
                     self.lock.acquire()
-                    print(Fore.LIGHTMAGENTA_EX + f"[Task: {self.task}]" ,Fore.BLUE + format(datetime.datetime.now()) , f"{Fore.RED}Account Creation Failed {self.email}")
+                    print(Fore.LIGHTMAGENTA_EX + f"[Task: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), f"{Fore.RED}Account Creation Failed {self.email}")
                     self.lock.release()
                     
                 return
@@ -170,4 +171,3 @@ class Gen:
                 self.lock.release()
                 self.chooseProxy()
                 continue
-        
