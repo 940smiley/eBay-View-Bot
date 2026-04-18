@@ -1,28 +1,22 @@
+import datetime
+import json
 import re
 import sys
-import requests
 import time
-import random
-import json
-from time import sleep
-import datetime
-from colorama import init
-import threading
+
+import requests
 from bs4 import BeautifulSoup
-from threading import Semaphore
-from colorama import Fore, Back, Style
-import logging
-import importlib.util
+from colorama import Fore, init
+
 sys.path.append("Utilities")
-import credentials
-import get_proxy
 import data
-from requests import exceptions as requestsExceptions
+import get_proxy
 
 init(autoreset=True)
 
+
 class Watch:
-    def __init__(self, EBAY:object, email, password, i ):
+    def __init__(self, EBAY: object, email, password, i):
         self.lock = EBAY.lock
         self.sem = EBAY.sem
         self.URL = EBAY.URL
@@ -47,169 +41,283 @@ class Watch:
 
     def getSession(self):
         self.lock.acquire()
-        print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), "Getting Session")
+        print(
+            Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+            Fore.BLUE + format(datetime.datetime.now()),
+            "Getting Session",
+        )
         self.lock.release()
 
         while True:
             try:
                 request = self.s.get(data.signIn_session, headers=data.Headers.signIn)
-                soup = BeautifulSoup(request.text, 'html.parser')
-                self.rqid = soup.find('input', {'name': 'rqid'}).get('value')
-                self.guid = soup.find('input', {'name': 'lkdhjebhsjdhejdshdjchquwekguid'}).get('value')
-                self.srt2 = soup.find('input', {'name': 'srt'}).get('value')
+                soup = BeautifulSoup(request.text, "html.parser")
+                self.rqid = soup.find("input", {"name": "rqid"}).get("value")
+                self.guid = soup.find(
+                    "input", {"name": "lkdhjebhsjdhejdshdjchquwekguid"}
+                ).get("value")
+                self.srt2 = soup.find("input", {"name": "srt"}).get("value")
                 print(self.srt2)
                 # The following regex and JSON parsing is fragile and should be improved for production use
-                token = str(re.findall(r'("csrfAjaxToken".*csrfSclConnectToken")', request.text)).strip()[2:-24]
-                id = str(re.findall(r'\[(.*?)\]', request.text)[111]).strip()[19:-632]
-                csrf = json.loads('{' + token + '}')
-                mid = json.loads('{' + id + '}')
+                token = str(
+                    re.findall(r'("csrfAjaxToken".*csrfSclConnectToken")', request.text)
+                ).strip()[2:-24]
+                id = str(re.findall(r"\[(.*?)\]", request.text)[111]).strip()[19:-632]
+                csrf = json.loads("{" + token + "}")
+                mid = json.loads("{" + id + "}")
                 self.csrfToken = csrf["csrfAjaxToken"]
                 self.dfpmid = mid["dfpmid"]
                 print(self.s.cookies)
                 return
             except requests.exceptions.ConnectionError as connectionerror:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[CONNECTION ERROR]", Fore.RED + str(connectionerror))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[CONNECTION ERROR]",
+                    Fore.RED + str(connectionerror),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.Timeout as timeout:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[TIMEOUT ERROR]", Fore.RED + str(timeout))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[TIMEOUT ERROR]",
+                    Fore.RED + str(timeout),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.RequestException as err:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[ERROR]", Fore.RED + str(err))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[ERROR]",
+                    Fore.RED + str(err),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.ProxyError as proxErr:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[PROXY ERROR]", Fore.RED + str(proxErr))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[PROXY ERROR]",
+                    Fore.RED + str(proxErr),
+                )
                 self.lock.release()
                 self.chooseProxy()
                 continue
 
     def watchDetails(self):
         self.lock.acquire()
-        print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), "Getting Watch Details")
+        print(
+            Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+            Fore.BLUE + format(datetime.datetime.now()),
+            "Getting Watch Details",
+        )
         self.lock.release()
 
         while True:
             try:
                 request = self.s.get(self.URL, headers=data.Headers.addViews)
-                u = str(re.findall(r'("addAjaxCSRF".*)remo', request.text)).strip()[2:-4]
+                u = str(re.findall(r'("addAjaxCSRF".*)remo', request.text)).strip()[
+                    2:-4
+                ]
                 print(u)
-                self.json_token = json.loads('{' + u + '}')
+                self.json_token = json.loads("{" + u + "}")
                 return
             except requests.exceptions.ConnectionError as connectionerror:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[CONNECTION ERROR]", Fore.RED + str(connectionerror))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[CONNECTION ERROR]",
+                    Fore.RED + str(connectionerror),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.Timeout as timeout:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[TIMEOUT ERROR]", Fore.RED + str(timeout))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[TIMEOUT ERROR]",
+                    Fore.RED + str(timeout),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.RequestException as err:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[ERROR]", Fore.RED + str(err))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[ERROR]",
+                    Fore.RED + str(err),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.ProxyError as proxErr:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[PROXY ERROR]", Fore.RED + str(proxErr))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[PROXY ERROR]",
+                    Fore.RED + str(proxErr),
+                )
                 self.lock.release()
                 self.chooseProxy()
                 continue
 
     def login(self):
         self.lock.acquire()
-        print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), f"Logging in {self.email}")
+        print(
+            Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+            Fore.BLUE + format(datetime.datetime.now()),
+            f"Logging in {self.email}",
+        )
         self.lock.release()
 
         while True:
             try:
                 self.logged_in = False
                 payload = {
-                    'userid': self.email,
-                    'pass': self.password,
-                    'kmsi-unchecked': '1',
-                    'kmsi': '1',
-                    'i1': '',
-                    'pageType': '-1',
-                    'returnUrl': 'https://www.ebay.com/',
-                    'srt': self.csrfToken,
-                    'fypReset': '',
-                    'ICurl': '',
-                    'src': '',
-                    'AppName': '',
-                    'srcAppId': '',
-                    'errmsg': '',
-                    'rtmData': 'PS=T.0',
-                    'rqid': self.rqid,
-                    'lkdhjebhsjdhejdshdjchquwekguid': self.guid,
-                    'recgUser': '',
-                    'hbi': '0',
-                    'lastAttemptMethod': 'password',
-                    'showWebAuthnOptIn': '1',
-                    'mid': self.dfpmid,
-                    'isRecgUser': 'false'
+                    "userid": self.email,
+                    "pass": self.password,
+                    "kmsi-unchecked": "1",
+                    "kmsi": "1",
+                    "i1": "",
+                    "pageType": "-1",
+                    "returnUrl": "https://www.ebay.com/",
+                    "srt": self.csrfToken,
+                    "fypReset": "",
+                    "ICurl": "",
+                    "src": "",
+                    "AppName": "",
+                    "srcAppId": "",
+                    "errmsg": "",
+                    "rtmData": "PS=T.0",
+                    "rqid": self.rqid,
+                    "lkdhjebhsjdhejdshdjchquwekguid": self.guid,
+                    "recgUser": "",
+                    "hbi": "0",
+                    "lastAttemptMethod": "password",
+                    "showWebAuthnOptIn": "1",
+                    "mid": self.dfpmid,
+                    "isRecgUser": "false",
                 }
-                request = self.s.post(data.signIn_URL, headers=data.Headers.login, data=payload, timeout=12, allow_redirects=False)
+                request = self.s.post(
+                    data.signIn_URL,
+                    headers=data.Headers.login,
+                    data=payload,
+                    timeout=12,
+                    allow_redirects=False,
+                )
                 print(request.url, request.text)
-                if 'SUCCESS' in request.text:
+                if "SUCCESS" in request.text:
                     self.logged_in = True
                 return
             except requests.exceptions.ConnectionError as connectionerror:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[CONNECTION ERROR]", Fore.RED + str(connectionerror))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[CONNECTION ERROR]",
+                    Fore.RED + str(connectionerror),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.Timeout as timeout:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[TIMEOUT ERROR]", Fore.RED + str(timeout))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[TIMEOUT ERROR]",
+                    Fore.RED + str(timeout),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.RequestException as err:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[ERROR]", Fore.RED + str(err))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[ERROR]",
+                    Fore.RED + str(err),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.ProxyError as proxErr:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[PROXY ERROR]", Fore.RED + str(proxErr))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[PROXY ERROR]",
+                    Fore.RED + str(proxErr),
+                )
                 self.lock.release()
                 self.chooseProxy()
                 continue
 
     def addWatcher(self):
         self.lock.acquire()
-        print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), f"Adding Watcher {self.email}")
+        print(
+            Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+            Fore.BLUE + format(datetime.datetime.now()),
+            f"Adding Watcher {self.email}",
+        )
         self.lock.release()
 
         while True:
             try:
-                request = self.s.post(data.signIn_URL, headers=data.Headers.signIn, timeout=12, allow_redirects=False)
+                request = self.s.post(
+                    data.signIn_URL,
+                    headers=data.Headers.signIn,
+                    timeout=12,
+                    allow_redirects=False,
+                )
                 return
             except requests.exceptions.ConnectionError as connectionerror:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[CONNECTION ERROR]", Fore.RED + str(connectionerror))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[CONNECTION ERROR]",
+                    Fore.RED + str(connectionerror),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.Timeout as timeout:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[TIMEOUT ERROR]", Fore.RED + str(timeout))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[TIMEOUT ERROR]",
+                    Fore.RED + str(timeout),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.RequestException as err:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[ERROR]", Fore.RED + str(err))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[ERROR]",
+                    Fore.RED + str(err),
+                )
                 self.lock.release()
                 continue
             except requests.exceptions.ProxyError as proxErr:
                 self.lock.acquire()
-                print(Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]", Fore.BLUE + format(datetime.datetime.now()), Fore.RED + "[PROXY ERROR]", Fore.RED + str(proxErr))
+                print(
+                    Fore.LIGHTMAGENTA_EX + f"[Task#: {self.task}]",
+                    Fore.BLUE + format(datetime.datetime.now()),
+                    Fore.RED + "[PROXY ERROR]",
+                    Fore.RED + str(proxErr),
+                )
                 self.lock.release()
                 self.chooseProxy()
                 continue
+

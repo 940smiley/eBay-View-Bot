@@ -30,3 +30,4 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+
